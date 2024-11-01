@@ -4,9 +4,8 @@ import { metodosUsuario} from '../controllers/usuario.controller.js';
 
 const router = Router();
 
-// Inicio de sesión
-router.get('/login', cors({
-    origin: 'http://localhost:8081' 
-}), metodosUsuario.iniciarSesion);
+router.post('/registro', cors({
+    origin: 'http://localhost:8081'
+}), metodosUsuario.registrarUsuario);
 
 export default router;

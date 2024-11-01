@@ -12,3 +12,4 @@ export default{
     dbPort: process.env.DB_PORT,
 };
 export { config };
+

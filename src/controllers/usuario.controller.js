@@ -1,14 +1,14 @@
-import { getConection } from '../database/database.js';
 
+import { getConection } from "../database/database.js";
 // iniciarSesion
-const iniciarSesion  = async (req, res) => {
+export const iniciarSesion  = async (req, res) => {
     const {numero_cuenta,  contraseña} = req.body;
     try{
         //Busqueda de usuario por numero 
-        const connection  = await getConection();
+        const connection = await getConection();
         const [usuarios] = await connection.query(
-            'SELECT * FROM usuarios WHERE numero_cuenta = ?', 
-            [numero_cuenta]
+            'SELECT * FROM usuarios WHERE numero_cuenta = ? and contraseña=?', 
+            [numero_cuenta, contraseña]
         );
         //Verificacion de existencia del usuario
         if (usuarios.length === 0) {
@@ -40,51 +40,66 @@ const iniciarSesion  = async (req, res) => {
         }    
 }
 
-
-//Obtener perfil
-
-const obtenerPerfil = async (req, res) => {
+const registrarUsuario = async (req, res) => {
+    const connection = await getConection();
     try{
-        const { usuario_id } = req.params;
-        const connection = await getConection();
+        const {nombre,email,contraseña,numero_cuenta,tipo,saldo = 0} = req.body;
 
-        const [usuarios] = await connection.query(
-            'SELECT id, nombre, email, numero_cuenta, tipo_cuenta, saldo FROM usuarios WHERE id = ?',
-            [usuario_id]
-        );
-        
-        if (usuarios.length === 0) {
-            return res.status(404).json({ 
-                mensaje: 'Usuario no encontrado' 
+        // Validaciones básicas
+        if (!nombre || !email || !contraseña || !numero_cuenta || !tipo) {
+            return res.status(400).json({
+                mensaje: 'Todos los campos son obligatorios'
             });
         }
-        
-        const usuario = usuarios[0];
 
-        // Obtener últimas transacciones
-        const [transacciones] = await connection.query(
-            `SELECT tipo, monto, fecha 
-             FROM transacciones 
-             WHERE cuenta_id = ? 
-             ORDER BY fecha DESC 
-             LIMIT 5`,
-            [usuario_id]
+        // Verificar si el email ya existe
+        const [emailExistente] = await connection.query(
+            'SELECT email FROM usuarios WHERE email = ?',
+            [email]
+        );
+        
+
+        if (emailExistente.length > 0) {
+            return res.status(400).json({
+                mensaje: 'El email ya está registrado'
+            });
+        }
+
+        // Verificar si el número de cuenta ya existe
+        const [cuentaExistente] = await connection.query(
+            'SELECT numero_cuenta FROM usuarios WHERE numero_cuenta = ?',
+            [numero_cuenta]
         );
 
-        res.json({
-            usuario,
-            ultimasTransacciones: transacciones
+        if (cuentaExistente.length > 0) {
+            return res.status(400).json({
+                mensaje: 'El número de cuenta ya está registrado'
+            });
+        }
+
+        // Insertar nuevo usuario
+        const [result] = await connection.query(
+            'INSERT INTO usuarios(nombre, email, contraseña, numero_cuenta, tipo, saldo) VALUES (?, ?, ?, ?, ?, ?)',
+            [nombre, email, contraseña, numero_cuenta, tipo, saldo]
+        );
+        // Respuesta exitosa
+        res.status(201).json({
+            mensaje: 'Usuario registrado exitosamente',
+            usuario: {
+                id: result.insertId,nombre,email,numero_cuenta,tipo,saldo
+            }
         });
 
     }catch (err) {
         res.status(500).json({
-            mensaje: 'Error al obtener perfil',
+            mensaje: 'Error al registrar usuario',
             error: err.message
         });
+
     }
 }
 
-export const metodosUsuario ={
+ export const metodosUsuario = {
     iniciarSesion,
-    obtenerPerfil
-}
+    registrarUsuario,
+ }
